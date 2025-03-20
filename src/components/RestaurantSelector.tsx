@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Store, Search, ChevronDown } from 'lucide-react';
 import {
   Command,
@@ -79,10 +79,13 @@ const RestaurantSelector: React.FC<RestaurantSelectorProps> = ({
             </PopoverTrigger>
             <PopoverContent className="w-[300px] p-0 pointer-events-auto bg-popover">
               <Command>
-                <CommandInput 
-                  placeholder="Search restaurant..." 
-                  startIcon={<Search className="h-4 w-4" />} 
-                />
+                <div className="flex items-center border-b px-3">
+                  <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
+                  <CommandInput 
+                    placeholder="Search restaurant..." 
+                    className="flex h-11 w-full rounded-md bg-transparent py-3 text-sm outline-none"
+                  />
+                </div>
                 <CommandEmpty>No restaurant found.</CommandEmpty>
                 <CommandGroup className="max-h-[300px] overflow-auto">
                   {RESTAURANT_OPTIONS.map((restaurant) => (
