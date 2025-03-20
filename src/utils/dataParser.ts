@@ -68,6 +68,17 @@ export const parseTables = (tablesStr: string): number[] => {
   return [];
 };
 
+// Convert Python-style JSON to JavaScript-compatible JSON
+const pythonToJsJson = (pythonJson: string): string => {
+  // Replace Python's None with JavaScript's null
+  return pythonJson
+    .replace(/: None/g, ': null')
+    .replace(/None,/g, 'null,')
+    .replace(/: True/g, ': true')
+    .replace(/: False/g, ': false')
+    .replace(/'/g, '"'); // Replace single quotes with double quotes
+};
+
 // Parse maps data
 export const parseMapData = (csvData: string, day: string): Record<number, Table> => {
   const result: Record<number, Table> = {};
@@ -80,14 +91,20 @@ export const parseMapData = (csvData: string, day: string): Record<number, Table
     
     filteredData.forEach((row: any) => {
       try {
-        // Parse the tables field which is a JSON string
-        const tablesData = JSON.parse(row.tables.replace(/'/g, '"'));
+        // Convert Python style JSON to JavaScript compatible JSON
+        const jsCompatibleJson = pythonToJsJson(row.tables);
         
-        tablesData.forEach((table: TableData) => {
+        // Now parse the JSON
+        const tablesData = JSON.parse(jsCompatibleJson);
+        
+        // Handle both array and single object formats
+        const tablesList = Array.isArray(tablesData) ? tablesData : [tablesData];
+        
+        tablesList.forEach((table: TableData) => {
           const tableId = table.id_table;
           result[tableId] = {
             tableId,
-            maxCapacity: parseInt(table.max),
+            maxCapacity: parseInt(table.max.toString()),
             occupied: false,
             occupancyLog: []
           };
