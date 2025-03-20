@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -32,46 +31,62 @@ const Index = () => {
     }
     
     setIsLoading(true);
+    toast('Simulation process started', {
+      description: 'Preparing to parse data files',
+    });
     
-    try {
-      // Prepare data for simulation
-      const data = prepareSimulationData(
-        mapsCSV,
-        reservationsCSV,
-        selectedDate,
-        selectedMealShift
-      );
-      
-      if (!data) {
-        toast.error('Failed to prepare simulation data');
+    setTimeout(() => {
+      try {
+        toast('Parsing input data', {
+          description: `Processing data for ${selectedDate}, ${selectedMealShift}`,
+        });
+        
+        const data = prepareSimulationData(
+          mapsCSV,
+          reservationsCSV,
+          selectedDate,
+          selectedMealShift
+        );
+        
+        if (!data) {
+          toast.error('Failed to prepare simulation data');
+          setIsLoading(false);
+          return;
+        }
+        
+        toast('Data parsed successfully', {
+          description: `Found ${Object.keys(data.tables).length} tables and ${data.reservations.length} reservations`,
+        });
+        
+        toast('Running simulation engine', {
+          description: 'Calculating table occupancy patterns',
+        });
+        
+        const simulatedData = runSimulation(data);
+        
+        setSimulationData(simulatedData);
+        setCurrentSliderVal(simulatedData.minSliderVal);
+        
+        toast.success('Simulation completed successfully', {
+          description: `Processed ${simulatedData.occupancyGroups.length} occupancy events`,
+        });
+      } catch (error) {
+        console.error('Simulation error:', error);
+        toast.error('An error occurred while running the simulation', {
+          description: error instanceof Error ? error.message : 'Unknown error',
+        });
+      } finally {
         setIsLoading(false);
-        return;
       }
-      
-      // Run the simulation
-      const simulatedData = runSimulation(data);
-      
-      // Update state with simulation results
-      setSimulationData(simulatedData);
-      setCurrentSliderVal(simulatedData.minSliderVal);
-      
-      toast.success('Simulation completed successfully');
-    } catch (error) {
-      console.error('Simulation error:', error);
-      toast.error('An error occurred while running the simulation');
-    } finally {
-      setIsLoading(false);
-    }
+    }, 100);
   };
   
-  // Check if all required data is available to run the simulation
   useEffect(() => {
     setSimulationReady(
       !!mapsCSV && !!reservationsCSV && !!selectedDate && !!selectedMealShift
     );
   }, [mapsCSV, reservationsCSV, selectedDate, selectedMealShift]);
   
-  // Update slider value
   const handleSliderValueChange = (value: number) => {
     setCurrentSliderVal(value);
   };
@@ -89,7 +104,6 @@ const Index = () => {
         </header>
         
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          {/* File Uploader */}
           <div className="animate-slide-in stagger-1">
             <FileUploader
               onMapsFileUploaded={(content) => setMapsCSV(content)}
@@ -98,7 +112,6 @@ const Index = () => {
             />
           </div>
           
-          {/* Date Selector */}
           <div className="animate-slide-in stagger-2">
             <DateSelector
               onDateSelected={setSelectedDate}
@@ -109,7 +122,6 @@ const Index = () => {
             />
           </div>
           
-          {/* Control Panel or Table Capacity Filter */}
           <div className="animate-slide-in stagger-3">
             {simulationData ? (
               <ControlPanel
@@ -129,7 +141,6 @@ const Index = () => {
           </div>
         </div>
         
-        {/* Simulation Results or Start Button */}
         <div className="animate-slide-in stagger-4">
           {isLoading ? (
             <Card className="w-full p-12 flex flex-col items-center justify-center">
@@ -221,7 +232,6 @@ const Index = () => {
                             <h3 className="text-sm font-medium text-muted-foreground mb-1">Peak Reservation Time</h3>
                             <p className="text-2xl font-bold">
                               {(() => {
-                                // Find the hour with most reservation starts
                                 const hourCounts: Record<number, number> = {};
                                 simulationData.reservations.forEach(res => {
                                   const hour = new Date(res.reservationDatetime).getHours();

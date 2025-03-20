@@ -79,15 +79,26 @@ const pythonToJsJson = (pythonJson: string): string => {
     .replace(/'/g, '"'); // Replace single quotes with double quotes
 };
 
+// Convert meal shift string to numeric value
+const getMealShiftNumeric = (mealShift: string): string => {
+  return mealShift === 'Comida' ? '1' : mealShift === 'Cena' ? '2' : '';
+};
+
 // Parse maps data
-export const parseMapData = (csvData: string, day: string): Record<number, Table> => {
+export const parseMapData = (csvData: string, day: string, mealShift: string): Record<number, Table> => {
   const result: Record<number, Table> = {};
+  const mealShiftNumeric = getMealShiftNumeric(mealShift);
   
   try {
     const { data } = parse(csvData, { header: true, skipEmptyLines: true });
     
-    // Filter by day and restaurant if needed
-    const filteredData = data.filter((row: any) => row.date === day);
+    // Filter by day and meal shift
+    const filteredData = data.filter((row: any) => 
+      row.date === day && 
+      row.meal === mealShiftNumeric
+    );
+    
+    console.log(`Filtered map data: ${filteredData.length} entries for ${day}, meal shift: ${mealShift} (${mealShiftNumeric})`);
     
     filteredData.forEach((row: any) => {
       try {
@@ -117,6 +128,7 @@ export const parseMapData = (csvData: string, day: string): Record<number, Table
     console.error('Error parsing map CSV:', e);
   }
   
+  console.log(`Parsed ${Object.keys(result).length} tables for ${day}, meal shift: ${mealShift}`);
   return result;
 };
 
@@ -192,7 +204,7 @@ export const prepareSimulationData = (
 ): SimulationData | null => {
   try {
     // Parse tables from maps data
-    const tables = parseMapData(mapsCSV, day);
+    const tables = parseMapData(mapsCSV, day, mealShift);
     
     // Parse reservations
     const reservations = parseReservationData(reservationsCSV, day, mealShift);
