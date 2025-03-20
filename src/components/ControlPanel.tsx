@@ -45,14 +45,13 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   useEffect(() => {
     if (isPlaying) {
       timerRef.current = window.setInterval(() => {
-        onSliderValueChange(prev => {
-          const newVal = prev + 10;
-          if (newVal >= data.maxSliderVal) {
-            setIsPlaying(false);
-            return data.maxSliderVal;
-          }
-          return newVal;
-        });
+        const newVal = currentSliderVal + 10;
+        if (newVal >= data.maxSliderVal) {
+          setIsPlaying(false);
+          onSliderValueChange(data.maxSliderVal);
+        } else {
+          onSliderValueChange(newVal);
+        }
       }, 1000);
     } else if (timerRef.current !== null) {
       window.clearInterval(timerRef.current);
@@ -64,7 +63,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
         window.clearInterval(timerRef.current);
       }
     };
-  }, [isPlaying, data.maxSliderVal, onSliderValueChange]);
+  }, [isPlaying, data.maxSliderVal, onSliderValueChange, currentSliderVal]);
   
   const handlePlayPause = () => {
     setIsPlaying(!isPlaying);
@@ -89,9 +88,8 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   };
   
   const handleSkipForward = () => {
-    onSliderValueChange(prev => {
-      return Math.min(prev + 30, data.maxSliderVal);
-    });
+    const newVal = Math.min(currentSliderVal + 30, data.maxSliderVal);
+    onSliderValueChange(newVal);
   };
   
   return (

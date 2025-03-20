@@ -4,7 +4,8 @@ import { toast } from 'sonner';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { Loader2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Loader2, Play } from 'lucide-react';
 import FileUploader from '@/components/FileUploader';
 import DateSelector from '@/components/DateSelector';
 import TableCapacityFilter from '@/components/TableCapacityFilter';
@@ -22,6 +23,7 @@ const Index = () => {
   const [simulationData, setSimulationData] = useState<SimulationData | null>(null);
   const [currentSliderVal, setCurrentSliderVal] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
+  const [simulationReady, setSimulationReady] = useState(false);
   
   const runSimulationProcess = () => {
     if (!mapsCSV || !reservationsCSV || !selectedDate || !selectedMealShift) {
@@ -62,11 +64,11 @@ const Index = () => {
     }
   };
   
-  // Run simulation when all required data is available
+  // Check if all required data is available to run the simulation
   useEffect(() => {
-    if (mapsCSV && reservationsCSV && selectedDate && selectedMealShift) {
-      runSimulationProcess();
-    }
+    setSimulationReady(
+      !!mapsCSV && !!reservationsCSV && !!selectedDate && !!selectedMealShift
+    );
   }, [mapsCSV, reservationsCSV, selectedDate, selectedMealShift]);
   
   // Update slider value
@@ -107,7 +109,7 @@ const Index = () => {
             />
           </div>
           
-          {/* Control Panel */}
+          {/* Control Panel or Table Capacity Filter */}
           <div className="animate-slide-in stagger-3">
             {simulationData ? (
               <ControlPanel
@@ -127,7 +129,7 @@ const Index = () => {
           </div>
         </div>
         
-        {/* Simulation Results */}
+        {/* Simulation Results or Start Button */}
         <div className="animate-slide-in stagger-4">
           {isLoading ? (
             <Card className="w-full p-12 flex flex-col items-center justify-center">
@@ -254,6 +256,23 @@ const Index = () => {
                 <p className="text-muted-foreground mb-6">
                   Upload data files, select a date and meal shift to start the simulation
                 </p>
+                
+                <Button 
+                  variant="default" 
+                  size="lg" 
+                  onClick={runSimulationProcess}
+                  disabled={!simulationReady || isLoading}
+                  className="gap-2"
+                >
+                  <Play className="h-4 w-4" />
+                  Start Simulation
+                </Button>
+                
+                {!simulationReady && (
+                  <p className="text-muted-foreground mt-4 text-sm">
+                    Please upload both data files and select a date and meal shift to enable simulation
+                  </p>
+                )}
               </div>
             </Card>
           )}
