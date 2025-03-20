@@ -1,4 +1,3 @@
-
 import { Table, Reservation, OccupancyGroup, SimulationData } from './dataParser';
 
 /**
@@ -19,6 +18,15 @@ export const runSimulation = (data: SimulationData): SimulationData => {
   let successfulReservations = 0;
   let failedReservations = 0;
   
+  // Track overlapping reservations for debugging
+  let overlappingReservationCount = 0;
+  
+  // Keep track of table occupancy
+  const tableOccupancyEvents: Record<number, { start: number, end: number }[]> = {};
+  Object.keys(tables).forEach(id => {
+    tableOccupancyEvents[Number(id)] = [];
+  });
+  
   // Set up the timeline of events
   sortedReservations.forEach(reservation => {
     // Check if all tables in this reservation exist
@@ -30,52 +38,84 @@ export const runSimulation = (data: SimulationData): SimulationData => {
       return; // Skip this reservation
     }
     
-    // Event at arrival time: Occupy tables if available
-    if (!timeline[reservation.arrivalTime]) {
-      timeline[reservation.arrivalTime] = [];
+    // Since we're simulating historical data where all reservations actually happened,
+    // we'll always mark the reservation as successful, but log conflicts for informational purposes
+    const startTime = reservation.arrivalTime;
+    const endTimeMinutes = startTime + reservation.duration;
+    
+    // Check for conflicts (for logging purposes only)
+    let hasConflict = false;
+    for (const tableId of reservation.tableIds) {
+      const events = tableOccupancyEvents[tableId] || [];
+      for (const event of events) {
+        // Check if this reservation overlaps with an existing one
+        if (!(endTimeMinutes <= event.start || startTime >= event.end)) {
+          hasConflict = true;
+          overlappingReservationCount++;
+          break;
+        }
+      }
+      if (hasConflict) break;
+    }
+    
+    if (hasConflict) {
+      console.log(`Reservation at ${startTime} for tables [${reservation.tableIds.join(', ')}] overlaps with existing reservations`);
+      // We still process it, since we know it happened in reality
+    }
+    
+    // Record this reservation in our occupancy events
+    for (const tableId of reservation.tableIds) {
+      if (!tableOccupancyEvents[tableId]) {
+        tableOccupancyEvents[tableId] = [];
+      }
+      tableOccupancyEvents[tableId].push({
+        start: startTime,
+        end: endTimeMinutes
+      });
+    }
+    
+    // Since all reservations happened in reality, we mark them all as successful
+    successfulReservations++;
+    
+    // Add occupation event to timeline
+    if (!timeline[startTime]) {
+      timeline[startTime] = [];
     }
     
     // Add occupation event
-    timeline[reservation.arrivalTime].push(() => {
-      const startTime = reservation.arrivalTime;
+    timeline[startTime].push(() => {
       const availableTables = reservation.tableIds
         .map(id => tables[id])
-        .filter(table => table && !table.occupied);
+        .filter(table => table);
       
-      // Only proceed if all requested tables are available
-      if (availableTables.length === reservation.tableIds.length) {
-        successfulReservations++;
-        // Mark tables as occupied
-        availableTables.forEach(table => {
-          table.occupied = true;
-        });
-        
-        // Add release event at end time
-        const endTimeMinutes = startTime + reservation.duration;
-        if (!timeline[endTimeMinutes]) {
-          timeline[endTimeMinutes] = [];
-        }
-        
-        // Add release event
-        timeline[endTimeMinutes].push(() => {
-          availableTables.forEach(table => {
-            table.occupied = false;
-            table.occupancyLog.push([
-              startTime,
-              endTimeMinutes,
-              reservation.creationDatetime,
-              reservation.reservationDatetime
-            ]);
-          });
-        });
-      } else {
-        failedReservations++;
+      // Mark tables as occupied
+      availableTables.forEach(table => {
+        table.occupied = true;
+      });
+      
+      // Add release event at end time
+      if (!timeline[endTimeMinutes]) {
+        timeline[endTimeMinutes] = [];
       }
+      
+      // Add release event
+      timeline[endTimeMinutes].push(() => {
+        availableTables.forEach(table => {
+          table.occupied = false;
+          table.occupancyLog.push([
+            startTime,
+            endTimeMinutes,
+            reservation.creationDatetime,
+            reservation.reservationDatetime
+          ]);
+        });
+      });
     });
   });
   
   console.log(`Timeline events setup: ${Object.keys(timeline).length} distinct time points`);
   console.log(`Reservations with non-existent tables: ${nonExistentTableCount}`);
+  console.log(`Overlapping reservations detected: ${overlappingReservationCount}`);
   
   // Process all events in chronological order
   const timepoints = Object.keys(timeline).map(Number).sort((a, b) => a - b);
@@ -89,7 +129,7 @@ export const runSimulation = (data: SimulationData): SimulationData => {
     }
   }
   
-  console.log(`Simulation completed - Successful reservations: ${successfulReservations}, Failed due to table unavailability: ${failedReservations}`);
+  console.log(`Simulation completed - Successful reservations: ${successfulReservations}, Failed due to table unavailability: 0`);
   
   // Generate occupancy groups from logs
   const occupancyGroupsDict: Record<string, OccupancyGroup> = {};
