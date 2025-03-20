@@ -147,12 +147,24 @@ const Index = () => {
                 isLoading={isLoading}
               />
             ) : (
-              <TableCapacityFilter
-                tables={simulationData?.tables || {}}
-                selectedCapacity={selectedCapacity}
-                onCapacitySelected={setSelectedCapacity}
-                isLoading={isLoading}
-              />
+              <Card className="w-full p-6 flex flex-col items-center justify-center">
+                <Button 
+                  variant="default" 
+                  size="lg" 
+                  onClick={runSimulationProcess}
+                  disabled={!simulationReady || isLoading}
+                  className="gap-2 mb-4"
+                >
+                  <Play className="h-4 w-4" />
+                  Start Simulation
+                </Button>
+                
+                {!simulationReady && (
+                  <p className="text-muted-foreground text-sm text-center">
+                    Please upload both data files and select a date, meal shift, and restaurant to enable simulation
+                  </p>
+                )}
+              </Card>
             )}
           </div>
         </div>

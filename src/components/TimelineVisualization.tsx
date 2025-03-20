@@ -1,12 +1,30 @@
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { SimulationData } from '@/utils/dataParser';
 import { getFilteredTableIds, getVisibleOccupancies, formatTimeFromMinutes } from '@/utils/simulationEngine';
+import { 
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle
+} from '@/components/ui/sheet';
+import { Clock, Calendar, Users, Info } from 'lucide-react';
 
 interface TimelineVisualizationProps {
   data: SimulationData;
   currentSliderVal: number;
   selectedCapacity: string;
+}
+
+interface ReservationDetail {
+  tableIds: number[];
+  startTime: string;
+  endTime: string;
+  duration: number;
+  creationTime: string;
+  reservationTime: string;
+  advanceTime: number;
 }
 
 const TimelineVisualization: React.FC<TimelineVisualizationProps> = ({
@@ -15,6 +33,8 @@ const TimelineVisualization: React.FC<TimelineVisualizationProps> = ({
   selectedCapacity
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
+  const [selectedReservation, setSelectedReservation] = useState<ReservationDetail | null>(null);
+  const [sheetOpen, setSheetOpen] = useState(false);
   
   // Get table IDs filtered by capacity
   const filteredTableIds = getFilteredTableIds(data.tables, selectedCapacity);
@@ -47,22 +67,38 @@ const TimelineVisualization: React.FC<TimelineVisualizationProps> = ({
   
   const currentTime = formatTimeFromMinutes(currentSliderVal, data.shiftStart);
   
-  // Get table occupancy status for a specific time and table
-  const getTableOccupancyStatus = (tableId: number, timeSlot: number) => {
+  // Get table occupancy spans for a specific table
+  const getTableOccupancySpans = (tableId: number) => {
+    const spans = [];
+    
     for (const group of visibleOccupancies) {
-      if (
-        group.tableIds.includes(tableId) &&
-        timeSlot >= group.start &&
-        timeSlot < (group.start + group.duration)
-      ) {
-        return {
-          occupied: true,
-          startTime: formatTimeFromMinutes(group.start, data.shiftStart),
-          endTime: formatTimeFromMinutes(group.start + group.duration, data.shiftStart)
-        };
+      if (group.tableIds.includes(tableId)) {
+        const startSlot = Math.floor(group.start / 30) * 30;
+        const endSlot = Math.ceil((group.start + group.duration) / 30) * 30;
+        const spanWidth = ((endSlot - startSlot) / 30);
+        
+        spans.push({
+          start: startSlot,
+          width: spanWidth,
+          group
+        });
       }
     }
-    return { occupied: false };
+    
+    return spans;
+  };
+  
+  const handleReservationClick = (group: any) => {
+    setSelectedReservation({
+      tableIds: group.tableIds,
+      startTime: formatTimeFromMinutes(group.start, data.shiftStart),
+      endTime: formatTimeFromMinutes(group.start + group.duration, data.shiftStart),
+      duration: group.duration,
+      creationTime: group.creation.toLocaleTimeString(),
+      reservationTime: group.reservation.toLocaleTimeString(),
+      advanceTime: Math.round(group.advance / 60) // convert to hours
+    });
+    setSheetOpen(true);
   };
   
   return (
@@ -108,6 +144,8 @@ const TimelineVisualization: React.FC<TimelineVisualizationProps> = ({
           ) : (
             filteredTableIds.map((tableId) => {
               const table = data.tables[tableId];
+              const occupancySpans = getTableOccupancySpans(tableId);
+              
               return (
                 <div key={tableId} className="flex border-b timeline-row-hover">
                   <div className="w-32 flex-shrink-0 p-3 border-r flex items-center text-sm">
@@ -116,21 +154,36 @@ const TimelineVisualization: React.FC<TimelineVisualizationProps> = ({
                       <div className="text-xs text-muted-foreground">{table.maxCapacity} pax</div>
                     </div>
                   </div>
-                  <div className="flex">
-                    {timeSlots.map((slot) => {
-                      const status = getTableOccupancyStatus(tableId, slot);
+                  <div className="flex relative h-12">
+                    {/* Time slots background */}
+                    {timeSlots.map((slot) => (
+                      <div 
+                        key={`bg-${tableId}-${slot}`} 
+                        className={`w-20 border-r flex-shrink-0
+                          ${currentSliderVal >= slot && currentSliderVal < slot + 30 ? 'bg-primary/5' : ''}`}
+                      />
+                    ))}
+                    
+                    {/* Occupancy spans */}
+                    {occupancySpans.map((span, index) => {
+                      const leftPosition = (span.start / 30) * 80; // 80px per 30min slot (w-20)
+                      const width = span.width * 80;
+                      
                       return (
-                        <div 
-                          key={`${tableId}-${slot}`} 
-                          className={`w-20 p-2 text-center text-xs border-r flex-shrink-0 timeline-cell
-                            ${status.occupied ? 'timeline-cell-occupied' : ''}
-                            ${currentSliderVal >= slot && currentSliderVal < slot + 30 ? 'bg-primary/5' : ''}`}
+                        <div
+                          key={`${tableId}-span-${index}`}
+                          className="absolute top-0 h-full bg-primary/90 text-white text-xs flex items-center justify-center px-1 rounded-md cursor-pointer hover:bg-primary transition-colors overflow-hidden"
+                          style={{ 
+                            left: `${leftPosition}px`, 
+                            width: `${width}px`,
+                            maxWidth: `${width}px`
+                          }}
+                          onClick={() => handleReservationClick(span.group)}
                         >
-                          {status.occupied && (
-                            <div className="truncate">
-                              {status.startTime}-{status.endTime}
-                            </div>
-                          )}
+                          <div className="truncate w-full text-center">
+                            {formatTimeFromMinutes(span.group.start, data.shiftStart)}-
+                            {formatTimeFromMinutes(span.group.start + span.group.duration, data.shiftStart)}
+                          </div>
                         </div>
                       );
                     })}
@@ -141,6 +194,72 @@ const TimelineVisualization: React.FC<TimelineVisualizationProps> = ({
           )}
         </div>
       </div>
+      
+      {/* Reservation detail sheet */}
+      <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
+        <SheetContent>
+          <SheetHeader>
+            <SheetTitle>Reservation Details</SheetTitle>
+            <SheetDescription>
+              Information about the selected reservation
+            </SheetDescription>
+          </SheetHeader>
+          
+          {selectedReservation && (
+            <div className="mt-6 space-y-4">
+              <div className="flex items-start gap-2">
+                <div className="bg-muted rounded-full p-2">
+                  <Users className="h-4 w-4" />
+                </div>
+                <div>
+                  <h4 className="text-sm font-medium">Tables</h4>
+                  <p className="text-sm text-muted-foreground">
+                    {selectedReservation.tableIds.map(id => `Table ${id}`).join(', ')}
+                  </p>
+                </div>
+              </div>
+              
+              <div className="flex items-start gap-2">
+                <div className="bg-muted rounded-full p-2">
+                  <Clock className="h-4 w-4" />
+                </div>
+                <div>
+                  <h4 className="text-sm font-medium">Time</h4>
+                  <p className="text-sm text-muted-foreground">
+                    {selectedReservation.startTime} - {selectedReservation.endTime} ({selectedReservation.duration} min)
+                  </p>
+                </div>
+              </div>
+              
+              <div className="flex items-start gap-2">
+                <div className="bg-muted rounded-full p-2">
+                  <Calendar className="h-4 w-4" />
+                </div>
+                <div>
+                  <h4 className="text-sm font-medium">Reservation</h4>
+                  <p className="text-sm text-muted-foreground">
+                    Created: {selectedReservation.creationTime}<br />
+                    Time: {selectedReservation.reservationTime}<br />
+                    Booked {selectedReservation.advanceTime} hours in advance
+                  </p>
+                </div>
+              </div>
+              
+              <div className="flex items-start gap-2">
+                <div className="bg-muted rounded-full p-2">
+                  <Info className="h-4 w-4" />
+                </div>
+                <div>
+                  <h4 className="text-sm font-medium">Additional Info</h4>
+                  <p className="text-sm text-muted-foreground">
+                    Tables reserved: {selectedReservation.tableIds.length}<br />
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+        </SheetContent>
+      </Sheet>
     </div>
   );
 };
