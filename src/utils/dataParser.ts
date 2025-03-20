@@ -97,7 +97,7 @@ export const parseMapData = (csvData: string, day: string, mealShift: string, re
     const filteredData = data.filter((row: any) => 
       row.date === day && 
       row.meal === mealShiftNumeric &&
-      row.restaurant_name === restaurantId
+      row.restaurant === restaurantId
     );
     
     console.log(`Filtered map data: ${filteredData.length} entries for ${day}, meal shift: ${mealShift} (${mealShiftNumeric}), restaurant: ${restaurantId}`);
@@ -152,7 +152,7 @@ export const parseReservationData = (
     const filteredData = data.filter((row: any) => 
       row.date === day && 
       row.meal_shift === mealShift &&
-      row.restaurant_name === restaurantId &&
+      row.restaurant === restaurantId &&
       confirmedStatuses.includes(row.status_long)
     );
     
