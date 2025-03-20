@@ -77,15 +77,12 @@ const RestaurantSelector: React.FC<RestaurantSelectorProps> = ({
                 <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-[300px] p-0 pointer-events-auto bg-popover">
+            <PopoverContent className="w-[300px] p-0 pointer-events-auto bg-popover z-50">
               <Command>
-                <div className="flex items-center border-b px-3">
-                  <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
-                  <CommandInput 
-                    placeholder="Search restaurant..." 
-                    className="flex h-11 w-full rounded-md bg-transparent py-3 text-sm outline-none"
-                  />
-                </div>
+                <CommandInput 
+                  placeholder="Search restaurant..." 
+                  className="h-9"
+                />
                 <CommandEmpty>No restaurant found.</CommandEmpty>
                 <CommandGroup className="max-h-[300px] overflow-auto">
                   {RESTAURANT_OPTIONS.map((restaurant) => (
