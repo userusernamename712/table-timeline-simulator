@@ -93,11 +93,11 @@ export const parseMapData = (csvData: string, day: string, mealShift: string, re
   try {
     const { data } = parse(csvData, { header: true, skipEmptyLines: true });
     
-    // Filter by day, meal shift, and restaurant ID
+    // Filter by day, meal shift, and restaurant_name
     const filteredData = data.filter((row: any) => 
       row.date === day && 
       row.meal === mealShiftNumeric &&
-      row.restaurant === restaurantId
+      row.restaurant_name === restaurantId
     );
     
     console.log(`Filtered map data: ${filteredData.length} entries for ${day}, meal shift: ${mealShift} (${mealShiftNumeric}), restaurant: ${restaurantId}`);
