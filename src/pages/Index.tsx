@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -7,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Loader2, Play } from 'lucide-react';
 import FileUploader from '@/components/FileUploader';
 import DateSelector from '@/components/DateSelector';
+import RestaurantSelector from '@/components/RestaurantSelector';
 import TableCapacityFilter from '@/components/TableCapacityFilter';
 import ControlPanel from '@/components/ControlPanel';
 import TimelineVisualization from '@/components/TimelineVisualization';
@@ -18,6 +20,7 @@ const Index = () => {
   const [reservationsCSV, setReservationsCSV] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState('');
   const [selectedMealShift, setSelectedMealShift] = useState('Comida'); // Default to lunch
+  const [selectedRestaurant, setSelectedRestaurant] = useState('');
   const [selectedCapacity, setSelectedCapacity] = useState('All');
   const [simulationData, setSimulationData] = useState<SimulationData | null>(null);
   const [currentSliderVal, setCurrentSliderVal] = useState(0);
@@ -25,7 +28,7 @@ const Index = () => {
   const [simulationReady, setSimulationReady] = useState(false);
   
   const runSimulationProcess = () => {
-    if (!mapsCSV || !reservationsCSV || !selectedDate || !selectedMealShift) {
+    if (!mapsCSV || !reservationsCSV || !selectedDate || !selectedMealShift || !selectedRestaurant) {
       toast.error('Please provide all required data before running the simulation');
       return;
     }
@@ -38,14 +41,15 @@ const Index = () => {
     setTimeout(() => {
       try {
         toast('Parsing input data', {
-          description: `Processing data for ${selectedDate}, ${selectedMealShift}`,
+          description: `Processing data for ${selectedRestaurant}, ${selectedDate}, ${selectedMealShift}`,
         });
         
         const data = prepareSimulationData(
           mapsCSV,
           reservationsCSV,
           selectedDate,
-          selectedMealShift
+          selectedMealShift,
+          selectedRestaurant
         );
         
         if (!data) {
@@ -83,9 +87,13 @@ const Index = () => {
   
   useEffect(() => {
     setSimulationReady(
-      !!mapsCSV && !!reservationsCSV && !!selectedDate && !!selectedMealShift
+      !!mapsCSV && 
+      !!reservationsCSV && 
+      !!selectedDate && 
+      !!selectedMealShift &&
+      !!selectedRestaurant
     );
-  }, [mapsCSV, reservationsCSV, selectedDate, selectedMealShift]);
+  }, [mapsCSV, reservationsCSV, selectedDate, selectedMealShift, selectedRestaurant]);
   
   const handleSliderValueChange = (value: number) => {
     setCurrentSliderVal(value);
@@ -103,7 +111,7 @@ const Index = () => {
           </p>
         </header>
         
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
           <div className="animate-slide-in stagger-1">
             <FileUploader
               onMapsFileUploaded={(content) => setMapsCSV(content)}
@@ -123,6 +131,14 @@ const Index = () => {
           </div>
           
           <div className="animate-slide-in stagger-3">
+            <RestaurantSelector
+              onRestaurantSelected={setSelectedRestaurant}
+              selectedRestaurant={selectedRestaurant}
+              isLoading={isLoading}
+            />
+          </div>
+          
+          <div className="animate-slide-in stagger-4">
             {simulationData ? (
               <ControlPanel
                 data={simulationData}
@@ -141,7 +157,7 @@ const Index = () => {
           </div>
         </div>
         
-        <div className="animate-slide-in stagger-4">
+        <div className="animate-slide-in stagger-5">
           {isLoading ? (
             <Card className="w-full p-12 flex flex-col items-center justify-center">
               <Loader2 className="h-8 w-8 text-primary animate-spin mb-4" />
@@ -175,7 +191,12 @@ const Index = () => {
                     </TabsList>
                     
                     <TabsContent value="overview" className="space-y-4">
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                        <div className="bg-secondary/50 rounded-lg p-4">
+                          <h3 className="text-sm font-medium text-muted-foreground mb-1">Restaurant</h3>
+                          <p className="text-2xl font-bold truncate">{simulationData.restaurantId.replace('restaurante-', '').replace('restauerante-', '')}</p>
+                        </div>
+                        
                         <div className="bg-secondary/50 rounded-lg p-4">
                           <h3 className="text-sm font-medium text-muted-foreground mb-1">Total Tables</h3>
                           <p className="text-2xl font-bold">{Object.keys(simulationData.tables).length}</p>
@@ -264,7 +285,7 @@ const Index = () => {
               <div className="text-center">
                 <h2 className="text-xl font-semibold mb-2">Ready to Simulate</h2>
                 <p className="text-muted-foreground mb-6">
-                  Upload data files, select a date and meal shift to start the simulation
+                  Upload data files, select a date, meal shift, and restaurant to start the simulation
                 </p>
                 
                 <Button 
@@ -280,7 +301,7 @@ const Index = () => {
                 
                 {!simulationReady && (
                   <p className="text-muted-foreground mt-4 text-sm">
-                    Please upload both data files and select a date and meal shift to enable simulation
+                    Please upload both data files and select a date, meal shift, and restaurant to enable simulation
                   </p>
                 )}
               </div>

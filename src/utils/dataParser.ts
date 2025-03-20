@@ -45,6 +45,7 @@ export interface SimulationData {
   maxSliderVal: number;
   day: string;
   mealShift: string;
+  restaurantId: string;
 }
 
 // Helper function to parse tables string from CSV
@@ -85,20 +86,21 @@ const getMealShiftNumeric = (mealShift: string): string => {
 };
 
 // Parse maps data
-export const parseMapData = (csvData: string, day: string, mealShift: string): Record<number, Table> => {
+export const parseMapData = (csvData: string, day: string, mealShift: string, restaurantId: string): Record<number, Table> => {
   const result: Record<number, Table> = {};
   const mealShiftNumeric = getMealShiftNumeric(mealShift);
   
   try {
     const { data } = parse(csvData, { header: true, skipEmptyLines: true });
     
-    // Filter by day and meal shift
+    // Filter by day, meal shift, and restaurant ID
     const filteredData = data.filter((row: any) => 
       row.date === day && 
-      row.meal === mealShiftNumeric
+      row.meal === mealShiftNumeric &&
+      row.restaurant_name === restaurantId
     );
     
-    console.log(`Filtered map data: ${filteredData.length} entries for ${day}, meal shift: ${mealShift} (${mealShiftNumeric})`);
+    console.log(`Filtered map data: ${filteredData.length} entries for ${day}, meal shift: ${mealShift} (${mealShiftNumeric}), restaurant: ${restaurantId}`);
     
     filteredData.forEach((row: any) => {
       try {
@@ -128,7 +130,7 @@ export const parseMapData = (csvData: string, day: string, mealShift: string): R
     console.error('Error parsing map CSV:', e);
   }
   
-  console.log(`Parsed ${Object.keys(result).length} tables for ${day}, meal shift: ${mealShift}`);
+  console.log(`Parsed ${Object.keys(result).length} tables for ${day}, meal shift: ${mealShift}, restaurant: ${restaurantId}`);
   return result;
 };
 
@@ -136,21 +138,25 @@ export const parseMapData = (csvData: string, day: string, mealShift: string): R
 export const parseReservationData = (
   csvData: string, 
   day: string, 
-  mealShift: string
+  mealShift: string,
+  restaurantId: string
 ): Reservation[] => {
   const reservations: Reservation[] = [];
   
   try {
     const { data } = parse(csvData, { header: true, skipEmptyLines: true });
     
-    // Filter by date and meal shift
+    // Filter by date, meal shift, and restaurant ID
     const confirmedStatuses = ["Sentada", "Cuenta solicitada", "Liberada", "Llegada", "Confirmada", "Re-Confirmada"];
     
     const filteredData = data.filter((row: any) => 
       row.date === day && 
       row.meal_shift === mealShift &&
+      row.restaurant_name === restaurantId &&
       confirmedStatuses.includes(row.status_long)
     );
+    
+    console.log(`Filtered reservation data: ${filteredData.length} entries for ${day}, meal shift: ${mealShift}, restaurant: ${restaurantId}`);
     
     // Calculate minimum time to establish relative arrival times
     const times = filteredData.map((row: any) => {
@@ -200,14 +206,15 @@ export const prepareSimulationData = (
   mapsCSV: string,
   reservationsCSV: string,
   day: string,
-  mealShift: string
+  mealShift: string,
+  restaurantId: string
 ): SimulationData | null => {
   try {
     // Parse tables from maps data
-    const tables = parseMapData(mapsCSV, day, mealShift);
+    const tables = parseMapData(mapsCSV, day, mealShift, restaurantId);
     
     // Parse reservations
-    const reservations = parseReservationData(reservationsCSV, day, mealShift);
+    const reservations = parseReservationData(reservationsCSV, day, mealShift, restaurantId);
     
     if (Object.keys(tables).length === 0 || reservations.length === 0) {
       console.error('No valid tables or reservations found');
@@ -238,7 +245,8 @@ export const prepareSimulationData = (
       minSliderVal: 0,
       maxSliderVal: endTime,
       day,
-      mealShift
+      mealShift,
+      restaurantId
     };
   } catch (e) {
     console.error('Error preparing simulation data:', e);
