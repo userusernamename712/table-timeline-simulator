@@ -1,4 +1,3 @@
-
 import React, { useEffect, useRef, useState } from 'react';
 import { SimulationData } from '@/utils/dataParser';
 import { getFilteredTableIds, getVisibleOccupancies, formatTimeFromMinutes } from '@/utils/simulationEngine';
@@ -67,25 +66,27 @@ const TimelineVisualization: React.FC<TimelineVisualizationProps> = ({
   
   const currentTime = formatTimeFromMinutes(currentSliderVal, data.shiftStart);
   
-  // Get table occupancy spans for a specific table
-  const getTableOccupancySpans = (tableId: number) => {
-    const spans = [];
+  // Merge consecutive reservations for a table that are from the same occupancy group
+  const getMergedTableOccupancies = (tableId: number) => {
+    const occupanciesForTable = visibleOccupancies.filter(group => 
+      group.tableIds.includes(tableId)
+    ).sort((a, b) => a.start - b.start);
     
-    for (const group of visibleOccupancies) {
-      if (group.tableIds.includes(tableId)) {
-        const startSlot = Math.floor(group.start / 30) * 30;
-        const endSlot = Math.ceil((group.start + group.duration) / 30) * 30;
-        const spanWidth = ((endSlot - startSlot) / 30);
-        
-        spans.push({
-          start: startSlot,
-          width: spanWidth,
-          group
-        });
-      }
+    const mergedOccupancies = [];
+    
+    for (const group of occupanciesForTable) {
+      const startSlot = Math.floor(group.start / 30) * 30;
+      const endSlot = Math.ceil((group.start + group.duration) / 30) * 30;
+      
+      mergedOccupancies.push({
+        start: startSlot,
+        end: endSlot,
+        width: (endSlot - startSlot) / 30,
+        group
+      });
     }
     
-    return spans;
+    return mergedOccupancies;
   };
   
   const handleReservationClick = (group: any) => {
@@ -144,7 +145,7 @@ const TimelineVisualization: React.FC<TimelineVisualizationProps> = ({
           ) : (
             filteredTableIds.map((tableId) => {
               const table = data.tables[tableId];
-              const occupancySpans = getTableOccupancySpans(tableId);
+              const occupancySpans = getMergedTableOccupancies(tableId);
               
               return (
                 <div key={tableId} className="flex border-b timeline-row-hover">

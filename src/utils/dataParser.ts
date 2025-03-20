@@ -166,6 +166,9 @@ export const parseReservationData = (
     
     const minTime = Math.min(...times);
     
+    let validReservations = 0;
+    let invalidTableIds = 0;
+    
     filteredData.forEach((row: any) => {
       try {
         const [hours, minutes] = row.time.split(':').map(Number);
@@ -182,18 +185,28 @@ export const parseReservationData = (
           tableIds = parseTables(row.table);
         }
         
-        reservations.push({
-          arrivalTime,
-          tableIds,
-          partySize: parseInt(row.for || '1'),
-          duration: parseInt(row.duration || '90'), // Default 90 minutes if not specified
-          creationDatetime,
-          reservationDatetime
-        });
+        // Only add reservations with valid table IDs
+        if (tableIds.length > 0) {
+          validReservations++;
+          reservations.push({
+            arrivalTime,
+            tableIds,
+            partySize: parseInt(row.for || '1'),
+            duration: parseInt(row.duration || '90'), // Default 90 minutes if not specified
+            creationDatetime,
+            reservationDatetime
+          });
+        } else {
+          invalidTableIds++;
+          console.log(`Skipping reservation with no valid table IDs: ${row.id || 'unknown'}`);
+        }
       } catch (e) {
         console.error('Error parsing reservation:', row, e);
       }
     });
+    
+    console.log(`Valid reservations: ${validReservations}, Reservations with invalid table IDs: ${invalidTableIds}`);
+    console.log(`Total reservations after processing: ${reservations.length}`);
   } catch (e) {
     console.error('Error parsing reservations CSV:', e);
   }
@@ -220,6 +233,8 @@ export const prepareSimulationData = (
       console.error('No valid tables or reservations found');
       return null;
     }
+    
+    console.log(`Initial reservations count: ${reservations.length}`);
     
     // Find the earliest reservation time to set as shift start
     const shiftStart = new Date(

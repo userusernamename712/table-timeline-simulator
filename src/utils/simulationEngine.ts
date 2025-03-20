@@ -9,11 +9,27 @@ export const runSimulation = (data: SimulationData): SimulationData => {
   const { tables, reservations, endTime } = data;
   const timeline: Record<number, (() => void)[]> = {};
   
+  console.log(`Starting simulation with ${reservations.length} reservations and ${Object.keys(tables).length} tables`);
+  
   // Sort reservations by arrival time to ensure correct processing order
   const sortedReservations = [...reservations].sort((a, b) => a.arrivalTime - b.arrivalTime);
   
+  // Count of reservations that couldn't be processed because tables don't exist
+  let nonExistentTableCount = 0;
+  let successfulReservations = 0;
+  let failedReservations = 0;
+  
   // Set up the timeline of events
   sortedReservations.forEach(reservation => {
+    // Check if all tables in this reservation exist
+    const allTablesExist = reservation.tableIds.every(id => tables[id] !== undefined);
+    
+    if (!allTablesExist) {
+      nonExistentTableCount++;
+      console.log(`Reservation for tables [${reservation.tableIds.join(', ')}] includes non-existent tables`);
+      return; // Skip this reservation
+    }
+    
     // Event at arrival time: Occupy tables if available
     if (!timeline[reservation.arrivalTime]) {
       timeline[reservation.arrivalTime] = [];
@@ -28,6 +44,7 @@ export const runSimulation = (data: SimulationData): SimulationData => {
       
       // Only proceed if all requested tables are available
       if (availableTables.length === reservation.tableIds.length) {
+        successfulReservations++;
         // Mark tables as occupied
         availableTables.forEach(table => {
           table.occupied = true;
@@ -51,9 +68,14 @@ export const runSimulation = (data: SimulationData): SimulationData => {
             ]);
           });
         });
+      } else {
+        failedReservations++;
       }
     });
   });
+  
+  console.log(`Timeline events setup: ${Object.keys(timeline).length} distinct time points`);
+  console.log(`Reservations with non-existent tables: ${nonExistentTableCount}`);
   
   // Process all events in chronological order
   const timepoints = Object.keys(timeline).map(Number).sort((a, b) => a - b);
@@ -66,6 +88,8 @@ export const runSimulation = (data: SimulationData): SimulationData => {
       }
     }
   }
+  
+  console.log(`Simulation completed - Successful reservations: ${successfulReservations}, Failed due to table unavailability: ${failedReservations}`);
   
   // Generate occupancy groups from logs
   const occupancyGroupsDict: Record<string, OccupancyGroup> = {};
@@ -91,7 +115,9 @@ export const runSimulation = (data: SimulationData): SimulationData => {
   });
   
   const occupancyGroups = Object.values(occupancyGroupsDict);
-  occupancyGroups.sort((a, b) => a.creation.getTime() - b.creation.getTime());
+  occupancyGroups.sort((a, b) => a.start - b.start);
+  
+  console.log(`Generated ${occupancyGroups.length} occupancy groups`);
   
   // Calculate min and max slider values
   let minSliderVal = 0;
